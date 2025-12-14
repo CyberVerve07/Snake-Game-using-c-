@@ -1,0 +1,214 @@
+#include <graphics.h>
+#include <conio.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <vector>
+
+using namespace std;
+
+// Snake state
+int x1 = 30;
+int y1 = 170;           // Snake head position (multiples of 10)
+char direc = 'd';       // Current direction (w/a/s/d)
+char last  = 'd';       // Previous direction
+
+bool playing = true;    // Game loop flag
+
+// Fruit
+int fruitx;
+int fruity;
+bool eaten = false;
+
+// Snake tail (each element is a 10x10 cell)
+vector<int> snakex;
+vector<int> snakey;
+int lengthmax = 2;      // Current snake length (number of tail blocks)
+
+// Score
+char score[50];
+int score1 = 0;
+
+// Forward declarations
+void spawnFruit();
+void drawAll();
+void moveSnake();
+void update();
+
+void start() {
+    srand(time(NULL));
+
+    // Create window
+    initwindow(350, 354, "SnakeGame");
+
+    // Initial score text
+    sprintf(score, "SCORE : %d ", score1);
+
+    // Top green bar
+    setcolor(GREEN);
+    setfillstyle(SOLID_FILL, GREEN);
+    rectangle(0, 0, 350, 10);
+    floodfill(5, 5, GREEN);
+
+    setcolor(WHITE);
+    outtextxy(10, 0, score);
+
+    // Initial fruit
+    spawnFruit();
+
+    // Initialize snake tail (start with lengthmax segments behind head)
+    for (int i = 0; i < lengthmax; ++i) {
+        snakex.push_back(x1 - (i + 1) * 10);
+        snakey.push_back(y1);
+    }
+}
+
+int main() {
+    start();
+
+    while (playing) {
+        update();
+
+        // Wall collision (playable area is from y = 10 to 340)
+        if (x1 >= 340 || x1 < 0 || y1 >= 340 || y1 < 10) {
+            playing = false;
+        }
+
+        // Self collision (check against all tail segments)
+        for (int i = 0; i < (int)snakex.size(); ++i) {
+            if (x1 == snakex[i] && y1 == snakey[i]) {
+                playing = false;
+                break;
+            }
+        }
+    }
+
+    // Game over screen
+    cleardevice();
+    setcolor(WHITE);
+    sprintf(score, "YOU LOST, YOUR SCORE : %d", score1);
+    outtextxy(40, 170, score);
+    getch();
+    closegraph();
+    return 0;
+}
+
+void spawnFruit() {
+    while (true) {
+        fruitx = (rand() % 34) * 10;
+        fruity = (rand() % 34) * 10;
+
+        // Avoid top bar
+        if (fruity == 0) {
+            fruity += 10;
+        }
+
+        // Ensure fruit is not on the snake
+        bool onSnake = false;
+        if (x1 == fruitx && y1 == fruity) {
+            onSnake = true;
+        }
+        for (int i = 0; i < (int)snakex.size(); ++i) {
+            if (fruitx == snakex[i] && fruity == snakey[i]) {
+                onSnake = true;
+                break;
+            }
+        }
+        if (!onSnake) break;
+    }
+}
+
+void update() {
+    sprintf(score, "SCORE : %d ", score1);
+
+    delay(150);
+
+    // Add current head position to tail (front)
+    snakex.insert(snakex.begin(), x1);
+    snakey.insert(snakey.begin(), y1);
+
+    // Trim tail to keep lengthmax
+    if ((int)snakex.size() > lengthmax) {
+        snakex.pop_back();
+        snakey.pop_back();
+    }
+
+    // Handle fruit and movement
+    if (x1 == fruitx && y1 == fruity) {
+        eaten = true;
+    }
+
+    if (eaten) {
+        eaten = false;
+        lengthmax++;      // Increase length
+        score1++;         // Increase score
+        spawnFruit();
+    }
+
+    moveSnake();
+    drawAll();
+}
+
+void moveSnake() {
+    if (kbhit()) {
+        char ch = getch();
+        // Only accept valid direction keys
+        if (ch == 'w' || ch == 'a' || ch == 's' || ch == 'd') {
+            direc = ch;
+        }
+    }
+
+    // Disallow reversing direction directly
+    if ((direc == 'w' && last == 's') ||
+        (direc == 's' && last == 'w') ||
+        (direc == 'a' && last == 'd') ||
+        (direc == 'd' && last == 'a')) {
+        direc = last;
+    }
+
+    last = direc;
+
+    if (direc == 's') {
+        y1 += 10;
+    } else if (direc == 'a') {
+        x1 -= 10;
+    } else if (direc == 'w') {
+        y1 -= 10;
+    } else if (direc == 'd') {
+        x1 += 10;
+    }
+}
+
+void drawAll() {
+    cleardevice();
+
+    // Top green bar
+    setcolor(GREEN);
+    setfillstyle(SOLID_FILL, GREEN);
+    rectangle(0, 0, 350, 10);
+    floodfill(5, 5, GREEN);
+
+    // Score text
+    setcolor(WHITE);
+    outtextxy(10, 0, score);
+
+    // Fruit
+    setcolor(RED);
+    setfillstyle(SOLID_FILL, RED);
+    rectangle(fruitx, fruity, fruitx + 10, fruity + 10);
+    floodfill(fruitx + 5, fruity + 5, RED);
+
+    // Snake head
+    setcolor(WHITE);
+    setfillstyle(SOLID_FILL, WHITE);
+    rectangle(x1, y1, x1 + 10, y1 + 10);
+    floodfill(x1 + 5, y1 + 5, WHITE);
+
+    // Snake tail
+    for (int i = 0; i < (int)snakex.size(); ++i) {
+        setcolor(WHITE);
+        setfillstyle(SOLID_FILL, WHITE);
+        rectangle(snakex[i], snakey[i], snakex[i] + 10, snakey[i] + 10);
+        floodfill(snakex[i] + 5, snakey[i] + 5, WHITE);
+    }
+}
